@@ -55,7 +55,7 @@ def analyze_column(name: str, series: pd.Series) -> Dict[str, Any]:
                 inferred_type = 'datetime'
             else:
                 inferred_type = 'string'
-        except:
+        except Exception:
             inferred_type = 'string'
     
     result = {
@@ -87,7 +87,7 @@ def analyze_column(name: str, series: pd.Series) -> Dict[str, Any]:
                     {'bin': f"{bin_edges[i]:.1f}", 'count': int(hist[i])}
                     for i in range(len(hist))
                 ]
-            except:
+            except Exception:
                 result['histogram'] = []
     
     # Top values for low cardinality
@@ -146,7 +146,7 @@ def _is_datetime(value: str) -> bool:
     try:
         pd.to_datetime(value)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -212,7 +212,7 @@ def parse_complex_value(value: str, method: str, delimiter: str = None) -> Dict[
         for p in parts:
             try:
                 nums.append(float(p))
-            except:
+            except (ValueError, TypeError):
                 pass
         
         result = {}
@@ -232,7 +232,7 @@ def parse_complex_value(value: str, method: str, delimiter: str = None) -> Dict[
                 return {k: v for k, v in parsed.items() if isinstance(v, (int, float, str))}
             elif isinstance(parsed, list):
                 return {f'field_{i}': v for i, v in enumerate(parsed)}
-        except:
+        except Exception:
             return {}
     
     elif method == 'delimiter':
@@ -242,7 +242,7 @@ def parse_complex_value(value: str, method: str, delimiter: str = None) -> Dict[
         for i, p in enumerate(parts):
             try:
                 result[f'field_{i}'] = float(p)
-            except:
+            except (ValueError, TypeError):
                 result[f'field_{i}'] = p
         return result
     
@@ -322,6 +322,31 @@ def standardize_columns(
 # 5. TRIP SEGMENTATION
 # ============================================================
 
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate haversine distance in km between two lat/lon points."""
+    R = 6371  # Earth's radius in km
+    
+    lat1_rad = np.radians(lat1)
+    lat2_rad = np.radians(lat2)
+    dlat = np.radians(lat2 - lat1)
+    dlon = np.radians(lon2 - lon1)
+    
+    a = np.sin(dlat/2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon/2)**2
+    return R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+
+
+def _has_col(trip_df: pd.DataFrame, mapped_features: set, *col_names: str) -> bool:
+    """
+    Check if ALL required columns are both mapped AND actually exist
+    in the trip dataframe. This prevents KeyError and TypeError.
+    """
+    for col in col_names:
+        if col not in mapped_features:
+            return False
+        if col not in trip_df.columns:
+            return False
+    return True
+
 def segment_into_trips(df: pd.DataFrame) -> Tuple[List[pd.DataFrame], List[Dict]]:
     """
     Segment data into trips using trip_id field, or fallback
@@ -392,7 +417,7 @@ def _create_trip_summary(trip_id: str, df: pd.DataFrame) -> Dict:
                 summary['start_time'] = times.iloc[0].isoformat()
                 summary['end_time'] = times.iloc[-1].isoformat()
                 summary['duration'] = (times.iloc[-1] - times.iloc[0]).total_seconds()
-        except:
+        except Exception:
             pass
     
     return summary
@@ -401,33 +426,6 @@ def _create_trip_summary(trip_id: str, df: pd.DataFrame) -> Dict:
 # ============================================================
 # 6. FEATURE EXTRACTION
 # ============================================================
-
-def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate haversine distance in km between two lat/lon points."""
-    R = 6371  # Earth's radius in km
-    
-    lat1_rad = np.radians(lat1)
-    lat2_rad = np.radians(lat2)
-    dlat = np.radians(lat2 - lat1)
-    dlon = np.radians(lon2 - lon1)
-    
-    a = np.sin(dlat/2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon/2)**2
-    return R * 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
-
-
-def _has_col(trip_df: pd.DataFrame, mapped_features: set, *col_names: str) -> bool:
-    """
-    Check if ALL required columns are both mapped AND actually exist
-    in the trip dataframe. This prevents KeyError and TypeError.
-    """
-    for col in col_names:
-        if col not in mapped_features:
-            return False
-        if col not in trip_df.columns:
-            return False
-    return True
-
-
 def _safe_numeric(trip_df: pd.DataFrame, col: str) -> pd.Series:
     """
     Safely get a numeric series from a dataframe column.
