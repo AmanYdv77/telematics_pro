@@ -1,8 +1,36 @@
-venv/
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-.streamlit/
-*.pdf
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing and Coverage
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Streamlit Local Cache/Credentials
+.streamlit/secrets.toml
+
+# Environment Variables & Secrets
+.env
+*.env
+
+# Large Documentation / Local Artifacts
 docs/
 book.md
 book.pdf
+*.pdf
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
